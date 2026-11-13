@@ -1,0 +1,51 @@
+name: Build ERFAN VPN
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Put files in place
+        run: |
+          mkdir -p lib assets
+          [ -f main.dart ] && mv -f main.dart lib/main.dart || true
+          [ -f bg.png ] && mv -f bg.png assets/bg.png || true
+          [ -f icon.png ] && mv -f icon.png assets/icon.png || true
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+      - name: Force compileSdk 36 for all plugins
+        run: |
+          mkdir -p ~/.gradle/init.d
+          cat > ~/.gradle/init.d/sdk.gradle <<'EOT'
+          allprojects {
+            afterEvaluate { p ->
+              if (p.hasProperty('android')) {
+                p.android.compileSdkVersion 36
+              }
+            }
+          }
+          EOT
+      - name: Create Android project
+        run: flutter create . --platforms=android --project-name erfan_vpn --org com.erfan
+      - name: Patch name, internet, minSdk
+        run: |
+          M=android/app/src/main/AndroidManifest.xml
+          sed -i 's/android:label="[^"]*"/android:label="ERFAN VPN"/' $M
+          sed -i 's#<application#<uses-permission android:name="android.permission.INTERNET"/>\n    <application#' $M
+          sed -i 's/minSdk = flutter.minSdkVersion/minSdk = 24/; s/minSdkVersion flutter.minSdkVersion/minSdkVersion 24/' android/app/build.gradle*
+      - run: flutter pub get
+      - run: dart run flutter_launcher_icons
+      - run: flutter build apk --release --split-per-abi
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ERFAN-VPN-apk
+          path: build/app/outputs/flutter-apk/*.apk
