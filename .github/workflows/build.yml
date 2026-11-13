@@ -1,20 +1,10 @@
-name: Build ERFAN VPN
-on:
-  workflow_dispatch:
-  push:
-    branches: [main]
-
+name: Build APK
+on: workflow_dispatch
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Put files in place
-        run: |
-          mkdir -p lib assets
-          [ -f main.dart ] && mv -f main.dart lib/main.dart || true
-          [ -f bg.png ] && mv -f bg.png assets/bg.png || true
-          [ -f icon.png ] && mv -f icon.png assets/icon.png || true
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
@@ -22,18 +12,18 @@ jobs:
       - uses: subosito/flutter-action@v2
         with:
           channel: stable
-      - name: Create Android project
-        run: flutter create . --platforms=android --project-name erfan_vpn --org com.erfan
-      - name: Patch name, internet, minSdk
+      - name: Build
         run: |
-          M=android/app/src/main/AndroidManifest.xml
-          sed -i 's/android:label="[^"]*"/android:label="ERFAN VPN"/' $M
-          sed -i 's#<application#<uses-permission android:name="android.permission.INTERNET"/>\n    <application#' $M
-          sed -i 's/minSdk = flutter.minSdkVersion/minSdk = 24/; s/minSdkVersion flutter.minSdkVersion/minSdkVersion 24/' android/app/build.gradle*
-      - run: flutter pub get
-      - run: dart run flutter_launcher_icons
-      - run: flutter build apk --release --split-per-abi
+          flutter create --org com.mrquantum --project-name mr_quantum app
+          mkdir -p app/assets
+          cp index.html app/assets/index.html
+          curl -L -o app/assets/decimal.min.js https://cdnjs.cloudflare.com/ajax/libs/decimal.js/10.4.3/decimal.min.js
+          cp main.dart app/lib/main.dart
+          cp pubspec.yaml app/pubspec.yaml
+          cd app
+          flutter pub get
+          flutter build apk --release
       - uses: actions/upload-artifact@v4
         with:
-          name: ERFAN-VPN-apk
-          path: build/app/outputs/flutter-apk/*.apk
+          name: MR-Quantum-APK
+          path: app/build/app/outputs/flutter-apk/app-release.apk
